@@ -197,7 +197,20 @@ def setze_text_param(elem, param_name, wert):
         return False, "Parameter '{}' ist ReadOnly".format(param_name)
     if p.StorageType != StorageType.String:
         return False, "Parameter '{}' ist kein Text".format(param_name)
-    p.Set(wert if wert is not None else "")
+    soll = wert if wert is not None else ""
+    set_ok = p.Set(soll)
+    if not set_ok:
+        return False, "Parameter '{}' Set() lieferte False".format(param_name)
+    # Direkt zurueck lesen - manche Pfade (Type-Binding, Group-Sperre)
+    # akzeptieren Set ohne Effekt.
+    try:
+        ist = p.AsString() or ""
+    except Exception:
+        ist = None
+    if ist != soll:
+        return False, "Parameter '{}' Wert nicht persistiert (soll='{}' ist='{}')".format(
+            param_name, soll, ist
+        )
     return True, None
 
 
