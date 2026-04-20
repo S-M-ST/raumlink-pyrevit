@@ -69,12 +69,27 @@ def finalize_report():
 
 # ============ KONFIG ============
 
-# Eigene Mini-SharedParameters-Datei im Extension-Root.
-# Liegt 3 Ordnerebenen ueber script.py: pushbutton -> panel -> tab -> extension
-# Enthaelt nur die 2 Raum-Link-Params, zentrale Firmen-GGP bleibt unberuehrt.
+# Eigene Mini-SharedParameters-Datei. Sucht bottom-up vom pushbutton hoch,
+# damit Installation in beliebige Ebene (pushbutton, panel, tab, extension)
+# funktioniert. Erste gefundene Datei gewinnt.
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_PARAM_FILE = os.path.normpath(os.path.join(
-    _HERE, "..", "..", "..", "RaumLink_SharedParams.txt"))
+_PARAM_FILE_NAME = "RaumLink_SharedParams.txt"
+
+
+def _find_param_file(start_dir, filename, max_up=6):
+    cur = start_dir
+    for _ in range(max_up + 1):
+        candidate = os.path.join(cur, filename)
+        if os.path.isfile(candidate):
+            return os.path.normpath(candidate)
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            break
+        cur = parent
+    return None
+
+
+_PARAM_FILE = _find_param_file(_HERE, _PARAM_FILE_NAME)
 
 # Zu bindende Parameter aus der GGP
 ZIEL_PARAMS = [
@@ -98,12 +113,15 @@ def abbruch(titel, message):
 
 log("# SharedParams binden - Raum an Moebel")
 
-if not os.path.isfile(_PARAM_FILE):
+if _PARAM_FILE is None or not os.path.isfile(_PARAM_FILE):
     abbruch(
         "RaumLink Setup",
-        "SharedParameters-Datei nicht gefunden:\n\n{}\n\n"
-        "Erwartet wird sie im Extension-Root. "
-        "Neu-Installation evtl. unvollstaendig?".format(_PARAM_FILE),
+        "SharedParameters-Datei '{}' nicht gefunden.\n\n"
+        "Gesucht wurde von:\n  {}\n"
+        "bis zur Laufwerkswurzel.\n\n"
+        "Datei in einen dieser Ordner legen "
+        "(pushbutton, panel, tab oder extension).".format(
+            _PARAM_FILE_NAME, _HERE),
     )
 
 # Aktuelle SharedParametersFile merken + temporaer umbiegen
