@@ -437,20 +437,86 @@ def main():
     log("| Raeume in Links | {} |".format(len(raeume)))
 
     if ohne_raum:
-        log("## Elemente ohne Raumtreffer (erste 25)")
+        log("## Elemente ohne Raumtreffer: {}".format(len(ohne_raum)))
         log(
             "Pruefe: Raumberechnungspunkt aktiv? Element im richtigen Stockwerk? "
             "Toleranz zu klein? ({} mm)".format(int(TOLERANZ_MM))
         )
-        for elem in ohne_raum[:25]:
-            link_txt = linkify_id(elem.Id)
+
+        def _familie(elem):
             try:
-                name = elem.Name or "(ohne Name)"
+                sym = getattr(elem, "Symbol", None)
+                if sym is not None:
+                    fam = getattr(sym, "Family", None)
+                    if fam is not None and fam.Name:
+                        return fam.Name
             except Exception:
-                name = "(ohne Name)"
-            log("- {} - {}".format(link_txt, name))
-        if len(ohne_raum) > 25:
-            log("_...und {} weitere_".format(len(ohne_raum) - 25))
+                pass
+            try:
+                tid = elem.GetTypeId()
+                if tid is not None and tid.IntegerValue > 0:
+                    et = doc.GetElement(tid)
+                    if et is not None:
+                        fn = getattr(et, "FamilyName", None)
+                        if fn:
+                            return fn
+                        return et.Name
+            except Exception:
+                pass
+            try:
+                return elem.Name or "(ohne Name)"
+            except Exception:
+                return "(ohne Name)"
+
+        def _typ(elem):
+            try:
+                sym = getattr(elem, "Symbol", None)
+                if sym is not None and sym.Name:
+                    return sym.Name
+            except Exception:
+                pass
+            try:
+                tid = elem.GetTypeId()
+                if tid is not None and tid.IntegerValue > 0:
+                    et = doc.GetElement(tid)
+                    if et is not None:
+                        return et.Name or ""
+            except Exception:
+                pass
+            return ""
+
+        gruppen = {}
+        reihenfolge = []
+        for elem in ohne_raum:
+            fam = _familie(elem)
+            if fam not in gruppen:
+                gruppen[fam] = []
+                reihenfolge.append(fam)
+            gruppen[fam].append(elem)
+
+        # Sortierung nach Anzahl absteigend
+        reihenfolge.sort(key=lambda f: -len(gruppen[f]))
+
+        log("### Uebersicht")
+        log("| Familie | Anzahl | Beispiel (klickbar) |")
+        log("|---|---:|---|")
+        for fam in reihenfolge:
+            elems = gruppen[fam]
+            log("| `{}` | {} | {} |".format(fam, len(elems), linkify_id(elems[0].Id)))
+
+        log("### Details pro Familie")
+        for fam in reihenfolge:
+            elems = gruppen[fam]
+            log("**{}** ({} Elemente)".format(fam, len(elems)))
+            # Typen-Aggregation innerhalb Familie
+            typen = {}
+            for e in elems:
+                t = _typ(e) or "(ohne Typ)"
+                typen.setdefault(t, []).append(e)
+            for tname in sorted(typen.keys()):
+                tes = typen[tname]
+                ids_links = " ".join(linkify_id(e.Id) for e in tes)
+                log("- `{}` ({}): {}".format(tname, len(tes), ids_links))
 
     if ohne_punkt:
         log("## Elemente ohne Einfuegepunkt")
