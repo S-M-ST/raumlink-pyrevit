@@ -1,0 +1,22 @@
+# Builds / Artifacts
+*.zip
+
+# Lokale Testdaten
+*.rvt
+*.rfa
+*.rte
+
+# Backups
+*.backup
+*.bak
+
+# Firmen-GGP (bleibt off-repo)
+0030_*.txt
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+__pycache__/
+*.pyc

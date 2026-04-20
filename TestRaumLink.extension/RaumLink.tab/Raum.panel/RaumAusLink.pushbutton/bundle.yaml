@@ -1,0 +1,3 @@
+title: "Raum\naus Link"
+tooltip: "Schreibt Raumname und Raumnummer aus verknuepften Architekturmodellen in die Shared Parameter 'Raum_Name' und 'Raum_Nummer' an Moebel-Elementen."
+author: "Strober Planung"
