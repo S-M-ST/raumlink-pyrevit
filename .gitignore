@@ -13,6 +13,9 @@
 # Firmen-GGP (bleibt off-repo)
 0030_*.txt
 
+# RaumLink user state
+user_categories.json
+
 # OS / IDE
 .DS_Store
 Thumbs.db

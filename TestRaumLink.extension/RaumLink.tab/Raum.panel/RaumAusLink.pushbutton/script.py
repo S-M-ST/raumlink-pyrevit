@@ -14,6 +14,7 @@ Voraussetzung (einmalig pro Projekt):
 """
 
 import os
+import sys
 import tempfile
 import webbrowser
 
@@ -31,6 +32,16 @@ from Autodesk.Revit.DB import (
     XYZ,
 )
 from Autodesk.Revit.UI import TaskDialog
+
+# raumlink_lib im Panel-Ordner (eine Ebene ueber pushbutton)
+_HERE_PB = os.path.dirname(os.path.abspath(__file__))
+_PANEL_DIR = os.path.dirname(_HERE_PB)
+if _PANEL_DIR not in sys.path:
+    sys.path.insert(0, _PANEL_DIR)
+from raumlink_lib import (
+    zeige_kategorie_dialog,
+    namen_zu_bics,
+)
 
 # pyrevit.script ist auf pyRevit 5.0.1 WIP mit Python 3.12 kaputt
 # (from collections import Callable). Abgesichert importieren.
@@ -90,16 +101,8 @@ def finalize_report():
 
 # ============ KONFIG ============
 
-KATEGORIEN = [
-    BuiltInCategory.OST_Furniture,
-    BuiltInCategory.OST_FurnitureSystems,
-    # bei Bedarf erweitern:
-    # BuiltInCategory.OST_PlumbingFixtures,
-    # BuiltInCategory.OST_ElectricalFixtures,
-    # BuiltInCategory.OST_ElectricalEquipment,
-    # BuiltInCategory.OST_Casework,
-    # BuiltInCategory.OST_SpecialityEquipment,
-]
+# KATEGORIEN wird zur Laufzeit aus dem Auswahl-Dialog gefuellt.
+KATEGORIEN = []
 
 PARAM_RAUM_NAME = "117_100_111_Raumname_Link"
 PARAM_RAUM_NUMMER = "117_100_112_Raumnr_Link"
@@ -332,6 +335,15 @@ def stelle_vary_across_groups_sicher(param_namen):
 
 
 def main():
+    global KATEGORIEN
+
+    gewaehlte_namen = zeige_kategorie_dialog("RaumLink - Kategorien schreiben")
+    if not gewaehlte_namen:
+        abbruch("Keine Kategorien gewaehlt - Abbruch.")
+    KATEGORIEN = namen_zu_bics(gewaehlte_namen)
+    log("# Raum-Link")
+    log("- Gewaehlte Kategorien: {}".format(", ".join(gewaehlte_namen)))
+
     raeume = sammle_raeume_aus_links()
     if not raeume:
         abbruch(
@@ -341,7 +353,7 @@ def main():
 
     elemente = sammle_elemente()
     if not elemente:
-        abbruch("Keine Elemente der konfigurierten Kategorien im Modell gefunden.")
+        abbruch("Keine Elemente der gewaehlten Kategorien im Modell gefunden.")
 
     ok, fehlende = pruefe_parameter_vorhanden(elemente)
     if not ok:

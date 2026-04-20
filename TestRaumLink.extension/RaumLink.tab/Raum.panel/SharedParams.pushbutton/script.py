@@ -1,14 +1,15 @@
-"""SharedParams binden - Raumname_Link + Raumnr_Link an Moebel.
+"""SharedParams binden - Raumname_Link + Raumnr_Link an gewaehlte Kategorien.
 
 Kein Shebang: laeuft auf pyRevit-Default-Engine (auf v5 IronPython 2.7).
 
 Liest die b.i.m.m-GGP-Datei (eine Ebene ueber der Extension) und bindet
-die beiden Ziel-Shared-Parameter an OST_Furniture + OST_FurnitureSystems
+die beiden Ziel-Shared-Parameter an die per Dialog gewaehlten Kategorien
 als Instance-Parameter in der Gruppe "Identitaetsdaten".
 
 Muster-Nachbau von Fural.extension/.../SharedParams.pushbutton.
 """
 import os
+import sys
 import tempfile
 import webbrowser
 
@@ -16,13 +17,22 @@ import clr
 clr.AddReference("RevitAPI")
 clr.AddReference("RevitAPIUI")
 from Autodesk.Revit.DB import (
-    BuiltInCategory,
     CategorySet,
     GroupTypeId,
     InstanceBinding,
     Transaction,
 )
 from Autodesk.Revit.UI import TaskDialog
+
+# raumlink_lib im Panel-Ordner (eine Ebene ueber pushbutton)
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_PANEL_DIR = os.path.dirname(_HERE)
+if _PANEL_DIR not in sys.path:
+    sys.path.insert(0, _PANEL_DIR)
+from raumlink_lib import (
+    zeige_kategorie_dialog,
+    namen_zu_bics,
+)
 
 
 doc = __revit__.ActiveUIDocument.Document  # noqa: F821
@@ -72,7 +82,6 @@ def finalize_report():
 # Eigene Mini-SharedParameters-Datei. Sucht bottom-up vom pushbutton hoch,
 # damit Installation in beliebige Ebene (pushbutton, panel, tab, extension)
 # funktioniert. Erste gefundene Datei gewinnt.
-_HERE = os.path.dirname(os.path.abspath(__file__))
 _PARAM_FILE_NAME = "RaumLink_SharedParams.txt"
 
 
@@ -97,12 +106,6 @@ ZIEL_PARAMS = [
     "117_100_112_Raumnr_Link",
 ]
 
-# Zielkategorien
-ZIEL_KATEGORIEN = [
-    BuiltInCategory.OST_Furniture,
-    BuiltInCategory.OST_FurnitureSystems,
-]
-
 # ================================
 
 
@@ -112,6 +115,14 @@ def abbruch(titel, message):
 
 
 log("# SharedParams binden - Raum an Moebel")
+
+# Kategorien waehlen (Dialog, Preset = letzte Auswahl oder Moebel/Moebelsysteme)
+gewaehlte_namen = zeige_kategorie_dialog("RaumLink - Kategorien binden")
+if not gewaehlte_namen:
+    TaskDialog.Show("RaumLink Setup", "Keine Kategorien gewaehlt - Abbruch.")
+    raise SystemExit
+ZIEL_KATEGORIEN = namen_zu_bics(gewaehlte_namen)
+log("- Gewaehlte Kategorien: {}".format(", ".join(gewaehlte_namen)))
 
 if _PARAM_FILE is None or not os.path.isfile(_PARAM_FILE):
     abbruch(
@@ -191,8 +202,9 @@ if cat_set.IsEmpty:
         pass
     abbruch(
         "RaumLink Setup",
-        "Zielkategorien im Projekt nicht gefunden.\n\n"
-        "Erwartet: Moebel, Moebelsysteme.",
+        "Keine der gewaehlten Kategorien im Projekt gefunden:\n\n  - {}".format(
+            "\n  - ".join(gewaehlte_namen)
+        ),
     )
 
 for kn in gefunden_namen:
