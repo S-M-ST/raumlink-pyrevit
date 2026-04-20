@@ -287,6 +287,37 @@ def pruefe_parameter_vorhanden(elemente):
     return len(fehlen) == 0, fehlen
 
 
+def stelle_vary_across_groups_sicher(param_namen):
+    # Setzt "Werte koennen pro Gruppeninstanz variieren" auf den bound
+    # InternalDefinitions. Ohne das wirft Revit beim Schreiben innerhalb
+    # einer Modellgruppe: "Aenderungen an Gruppen sind nur im
+    # Gruppenbearbeitungsmodus zulaessig."
+    geaendert = []
+    binding_map = doc.ParameterBindings
+    t = Transaction(doc, "RaumLink: VaryAcrossGroups setzen")
+    t.Start()
+    try:
+        it = binding_map.ForwardIterator()
+        it.Reset()
+        while it.MoveNext():
+            d = it.Key
+            if d is None or d.Name not in param_namen:
+                continue
+            try:
+                if not d.VariesAcrossGroups:
+                    d.SetAllowVaryBetweenGroups(doc, True)
+                    geaendert.append(d.Name)
+            except Exception:
+                pass
+        t.Commit()
+    except Exception:
+        try:
+            t.RollBack()
+        except Exception:
+            pass
+    return geaendert
+
+
 def main():
     raeume = sammle_raeume_aus_links()
     if not raeume:
@@ -309,6 +340,12 @@ def main():
                 "\n  - ".join(fehlende)
             )
         )
+
+    nachgezogen = stelle_vary_across_groups_sicher(
+        (PARAM_RAUM_NAME, PARAM_RAUM_NUMMER)
+    )
+    if nachgezogen:
+        log("- VaryAcrossGroups nachgezogen fuer: {}".format(", ".join(nachgezogen)))
 
     toleranz_feet = TOLERANZ_MM * MM_TO_FEET
 
