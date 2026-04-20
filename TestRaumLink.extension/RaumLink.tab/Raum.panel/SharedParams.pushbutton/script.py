@@ -200,6 +200,23 @@ for kn in gefunden_namen:
 
 binding_map = doc.ParameterBindings
 
+def _set_vary_across_groups(bmap, defn_name):
+    # Nach dem Binden ist im BindingMap die InternalDefinition als Key.
+    # Diese hat SetAllowVaryBetweenGroups -> Werte koennen pro Gruppen-
+    # Instanz variieren (sonst sind sie ueber alle Instanzen einer
+    # Modellgruppe gekoppelt).
+    it = bmap.ForwardIterator()
+    it.Reset()
+    while it.MoveNext():
+        d = it.Key
+        if d is not None and d.Name == defn_name:
+            try:
+                d.SetAllowVaryBetweenGroups(doc, True)
+            except Exception:
+                pass
+            return
+
+
 t = Transaction(doc, "RaumLink SharedParams binden")
 t.Start()
 try:
@@ -218,6 +235,7 @@ try:
                 binding_map.Insert(defn, bind, GroupTypeId.IdentityData)
                 importiert += 1
                 log("- `{}` **importiert**".format(pname))
+            _set_vary_across_groups(binding_map, pname)
         except Exception as ex:
             fehler += 1
             log("- `{}` **Fehler**: {}".format(pname, ex))
