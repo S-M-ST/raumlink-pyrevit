@@ -1,5 +1,6 @@
 # Builds / Artifacts
 *.zip
+!dist/*.zip
 
 # Lokale Testdaten
 *.rvt
